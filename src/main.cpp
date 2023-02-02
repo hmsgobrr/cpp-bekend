@@ -62,6 +62,10 @@ int main() {
 
 	SOCKET ClientSocket = INVALID_SOCKET;
 
+	char recvbuf[BUFLEN];
+	int recvbuflen = BUFLEN;
+	int iSendResult;
+
 	while (true) {
 		ClientSocket = accept(ListenSocket, NULL, NULL);
 		if (ClientSocket == INVALID_SOCKET) {
@@ -71,12 +75,15 @@ int main() {
 			return 1;
 		}
 
-		char recvbuf[BUFLEN];
-		int recvbuflen = BUFLEN;
-		int iSendResult;
-
 		iResult = recv(ClientSocket, recvbuf, recvbuflen, 0);
-		std::cout << recvbuf << std::endl;
+
+		// Get the method and route from first 2 words of the header
+		char* reqHeaderToken = strtok(recvbuf, " ");
+		char* method = reqHeaderToken;
+		reqHeaderToken = strtok(NULL, " ");
+		char* route = reqHeaderToken;
+
+		std::cout << "Request received:\n\tMethod:\t" << method << "\n\tRoute:\t" << route << std::endl;
 
 		char httpHeader[] =
 			"HTTP/1.1 200\n"
