@@ -2,11 +2,21 @@
 #include <ws2tcpip.h>
 #include <cstring>
 #include <iostream>
+#include <unordered_map>
+#include <string>
+#include <algorithm>
+#include <sstream>
 
 #pragma comment(lib, "Ws2_32.lib")
 
 #define PORT	"8080"
 #define BUFLEN	512
+
+void ltrim(std::string& s) {
+	s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](unsigned char ch) {
+		return !std::isspace(ch);
+	}));
+}
 
 int main() {
 	WSADATA wsaData;
@@ -77,15 +87,38 @@ int main() {
 
 		iResult = recv(ClientSocket, recvbuf, recvbuflen, 0);
 
-		// Get the method and route from first 2 words of the header
-		char* reqHeaderToken = strtok(recvbuf, " ");
-		char* method = reqHeaderToken;
-		reqHeaderToken = strtok(NULL, " ");
-		char* route = reqHeaderToken;
+		std::unordered_map<std::string, std::string> reqHeaders;
 
-		std::cout << "Request received:\n\tMethod:\t" << method << "\n\tRoute:\t" << route << std::endl;
+		bool isMethodPathLine = true;
+		std::string method;
+		std::string path;
 
-		char httpHeader[] =
+		std::stringstream reqHeadersSS(recvbuf);
+		for (std::string headerLine; std::getline(reqHeadersSS, headerLine);) {
+			std::stringstream headerLineSS(headerLine);
+
+			if (isMethodPathLine) {
+				headerLineSS >> method;
+				headerLineSS >> path;
+				isMethodPathLine = false;
+				continue;
+			}
+
+			std::string headerName;
+			std::transform(headerName.begin(), headerName.end(), headerName.begin(), ::tolower);
+			std::getline(headerLineSS, headerName, ':');
+
+			std::string headerValue;
+			std::getline(headerLineSS, headerValue);
+			ltrim(headerValue);
+
+			reqHeaders[headerName] = headerValue;
+
+			std::cout << headerName << ": " << reqHeaders[headerName] << "\n";
+			//std::cout << headerLine << std::endl;
+		}
+
+		const char httpHeader[] =
 			"HTTP/1.1 200\n"
 			"Content-Type: text/html\n"
 			"\n"
