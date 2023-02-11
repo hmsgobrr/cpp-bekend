@@ -88,8 +88,8 @@ int HttpServer::Start(int port) {
 			continue;
 		}
 
-		//std::async(std::launch::async, HandleReq, this, client);
-		HandleReq(this, client);
+		std::async(std::launch::async, HandleReq, this, client);
+		//HandleReq(this, client);
 	}
 
 	WSACleanup();
@@ -97,7 +97,13 @@ int HttpServer::Start(int port) {
 	return 0;
 }
 
-//static std::mutex s_routeFuncsMutex;
+void HttpServer::get(const std::string& route, RouteFunc func) {
+	m_routeFuncs["GET " + route] = func;
+}
+
+RouteFunc HttpServer::getRouteFunc(const std::string& route) {
+	return m_routeFuncs[route];
+}
 
 static void HandleReq(HttpServer* server, uint64_t client) {
 	char recvbuf[REQ_BUFLEN];
@@ -143,10 +149,10 @@ static void HandleReq(HttpServer* server, uint64_t client) {
 	if (route.rfind("/static/", 0) == 0) {
 		response = getStaticFile(route);
 	} else {
-		std::cout << "a\n";
 		RouteFunc responseFunc = server->getRouteFunc(methodRoute);
 		response = responseFunc ? responseFunc(reqHeaders) : ERROR_404_RES;
 	}
+
 	iResult = send(client, response.c_str(), response.size(), 0);
 	if (iResult == SOCKET_ERROR) {
 		std::cout << "send() failed: " << WSAGetLastError() << std::endl;
@@ -163,17 +169,39 @@ static void HandleReq(HttpServer* server, uint64_t client) {
 }
 
 static std::string getStaticFile(const std::string& path) {
-	std::ifstream file;
-	file.open("." + path, std::ios::binary);
-
-	if (!file.is_open()) return ERROR_404_RES;
-
 	std::stringstream pathSS(path);
 	std::string fileExt;
 
 	while (std::getline(pathSS, fileExt, '.'));
 
-	std::cout << fileExt << " WO\n";
+	bool isBinary = false;
+	std::string contentType;
+
+	if (fileExt == "jpg" || fileExt == "jpeg") {
+		isBinary = true;
+		contentType = "image/jpg";
+;	} else if (fileExt == "png") {
+		isBinary = true;
+		contentType = "image/png";
+	} else if (fileExt == "gif") {
+		isBinary = true;
+		contentType = "image/gif";
+	} else if (fileExt == "css") {
+		isBinary = false;
+		contentType = "text/css";
+	} else if (fileExt == "js") {
+		isBinary = false;
+		contentType = "text/javascript";
+	} else {
+		contentType = "text/plain";
+	}
+
+	std::ifstream file;
+
+	if (isBinary) file.open("." + path, std::ios::binary);
+	else file.open("." + path);
+
+	if (!file.is_open()) return ERROR_404_RES;
 
 	std::string fileContent;
 
@@ -181,13 +209,20 @@ static std::string getStaticFile(const std::string& path) {
 		fileContent.append(line + "\n");
 	}
 	
-	return "HTTP/1.1 200\ncontent-type: image/jpg; charset=utf-8\n\n" + fileContent;
+	return "HTTP/1.1 200\ncontent-type: " + contentType + "\n\n" + fileContent;
 }
 
-void HttpServer::get(const std::string& route, RouteFunc func) {
-	m_routeFuncs["GET " + route] = func;
-}
+std::string renderHtmlFile(const std::string& htmlFilePath, const rapidjson::Document& data) {
+	std::ifstream file;
+	file.open("templates/" + htmlFilePath);
 
-RouteFunc HttpServer::getRouteFunc(const std::string& route) {
-	return m_routeFuncs[route];
+	if (!file.is_open()) return ERROR_404_RES;
+
+	std::string html = "HTTP/1.1 200\ncontent-type: text/html\n\n";
+
+	for (std::string line; std::getline(file, line);) {
+		html.append(line);
+	}
+
+	return html;
 }

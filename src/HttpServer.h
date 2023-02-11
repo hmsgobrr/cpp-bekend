@@ -3,6 +3,8 @@
 #include <unordered_map>
 #include <string>
 
+#include "rapidjson/document.h"
+
 using HeadersUMap = std::unordered_map<std::string, std::string>;
 typedef std::string (*RouteFunc)(const HeadersUMap&);
 
@@ -20,3 +22,4 @@ private:
 };
 
 int InitWSA();
+std::string renderHtmlFile(const std::string& htmlFilePath, const rapidjson::Document& data);

@@ -10,11 +10,12 @@ file(GLOB_RECURSE ASSETS
 	"static/*.png"
 	"static/*.gif"
 	"static/*.svg"
-	"static/*.html"
 	"static/*.css"
 	"static/*.js"
+	"templates/*.html"
 )
 
 add_executable(${PROJECT_NAME} ${SOURCE} ${ASSETS})
 
 target_include_directories(${PROJECT_NAME} PRIVATE src)
+target_include_directories(${PROJECT_NAME} PUBLIC vendor/rapidjson/include)

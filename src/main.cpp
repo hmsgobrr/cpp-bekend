@@ -5,13 +5,12 @@
 #define PORT 8080
 
 std::string d(const HeadersUMap&) {
-	std::string response =	"HTTP/1.1 200\n"
+	/*std::string response =	"HTTP/1.1 200\n"
 							"content-type: text/html\n"
 							"\n"
 							"<h1>nekalakiniwahapapaniwewinatin</h1>"
-							"<img src=\"static/maxwell.jpg\" />";
-	std::cout << "asd" << "\n";
-	return response;
+							"<img src=\"static/maxwell.jpg\" />";*/
+	return renderHtmlFile("index.html", rapidjson::Document());
 }
 
 int main() {
