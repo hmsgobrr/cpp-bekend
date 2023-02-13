@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-cppbekend="">
 <head>
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -10,5 +10,13 @@
 <body>
     <h1>turi ip ip</h1>
     <img src="static/maxwell.jpg" width="400" height="225" />
+    <p>hi mi is <span id="username"></span> desu</p>
+
+    <script>
+        const data = JSON.parse(document.documentElement.dataset.cppbekend);
+        const span = document.getElementById("username");
+
+        span.innerHTML = data.username;
+    </script>
 </body>
 </html>

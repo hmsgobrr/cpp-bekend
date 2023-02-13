@@ -7,6 +7,10 @@
 #include <algorithm>
 #include <sstream>
 #include <fstream>
+#include <regex>
+
+#include "rapidjson/writer.h"
+#include "rapidjson/stringbuffer.h"
 
 #pragma comment(lib, "Ws2_32.lib")
 
@@ -219,9 +223,26 @@ std::string renderHtmlFile(const std::string& htmlFilePath, const rapidjson::Doc
 	if (!file.is_open()) return ERROR_404_RES;
 
 	std::string html = "HTTP/1.1 200\ncontent-type: text/html\n\n";
-
+	
+	int lineNum = 0;
 	for (std::string line; std::getline(file, line);) {
-		html.append(line);
+		lineNum++;
+		if (lineNum == 2 && !data.IsNull()) {
+			std::string searchString = "data-cppbekend=\"";
+			size_t pos = line.find(searchString, 6);
+
+			if (pos != std::string::npos) {
+				rapidjson::StringBuffer buffer;
+				rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+				data.Accept(writer);
+
+				std::string string = std::regex_replace(buffer.GetString(), std::regex("\""), "&quot;");
+				//std::string string = buffer.GetString();
+
+				line.insert(pos + searchString.size(), string);
+			}
+		}
+		html.append(line + "\n");
 	}
 
 	return html;

@@ -10,7 +10,13 @@ std::string d(const HeadersUMap&) {
 							"\n"
 							"<h1>nekalakiniwahapapaniwewinatin</h1>"
 							"<img src=\"static/maxwell.jpg\" />";*/
-	return renderHtmlFile("index.html", rapidjson::Document());
+	rapidjson::Document data;
+	data.SetObject();
+
+	const char* myname = "maxwell";
+	data.AddMember("username", rapidjson::Value().SetString(rapidjson::StringRef(myname, 6)), data.GetAllocator());
+	
+	return renderHtmlFile("index.html", data);
 }
 
 int main() {
