@@ -12,7 +12,7 @@
 #include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
 
-#pragma comment(lib, "Ws2_32.lib")
+// #pragma comment(lib, "Ws2_32.lib")
 
 #define REQ_BUFLEN 512
 
@@ -190,6 +190,9 @@ static std::string getStaticFile(const std::string& path) {
 	} else if (fileExt == "gif") {
 		isBinary = true;
 		contentType = "image/gif";
+	} else if (fileExt == "mp3") {
+		isBinary = true;
+		contentType = "audio/mpeg";
 	} else if (fileExt == "css") {
 		isBinary = false;
 		contentType = "text/css";
