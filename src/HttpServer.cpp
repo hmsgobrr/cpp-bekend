@@ -28,148 +28,53 @@ static void ltrim(std::string& s) {
 	}));
 }
 
-static void HandleReq(HttpServer* server, uint64_t client);
 static std::string getStaticFile(const std::string& path);
 
-int InitWSA() {
-	WSADATA wsaData;
-	return WSAStartup(MAKEWORD(2, 2), &wsaData);
-}
+int HttpServer::Listen(int port) {
+	return m_socket.Listen(port, [this](std::string requestText) {
+		std::unordered_map<std::string, std::string> reqHeaders;
 
-int HttpServer::Start(int port) {
-	m_port = port;
+		bool isMethodRouteLine = true;
+		std::string method, route;
+		std::string methodRoute;
 
-	addrinfo* result = NULL;
-	addrinfo hints;
+		std::stringstream reqHeadersSS(requestText);
+		for (std::string headerLine; std::getline(reqHeadersSS, headerLine);) {
+			std::stringstream headerLineSS(headerLine);
 
-	ZeroMemory(&hints, sizeof(hints));
-	hints.ai_family = AF_INET;
-	hints.ai_socktype = SOCK_STREAM;
-	hints.ai_protocol = IPPROTO_TCP;
-	hints.ai_flags = AI_PASSIVE;
+			if (isMethodRouteLine) {
+				headerLineSS >> method;
+				headerLineSS >> route;
+				methodRoute = method + " " + route;
+				isMethodRouteLine = false;
+				continue;
+			}
 
-	int iResult = getaddrinfo(NULL, std::to_string(port).c_str(), &hints, &result);
-	if (iResult != 0) {
-		std::cout << "getaddrinfo failed: " << iResult << std::endl;
-		WSACleanup();
-		return 1;
-	}
+			std::string headerName;
+			std::transform(headerName.begin(), headerName.end(), headerName.begin(), ::tolower);
+			std::getline(headerLineSS, headerName, ':');
 
-	m_socket = INVALID_SOCKET;
-	m_socket = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
-	if (m_socket == INVALID_SOCKET) {
-		std::cout << "Error at socket(): " << WSAGetLastError() << std::endl;
-		freeaddrinfo(result);
-		WSACleanup();
-		return 1;
-	}
+			std::string headerValue;
+			std::getline(headerLineSS, headerValue);
+			ltrim(headerValue);
 
-
-	iResult = bind(m_socket, result->ai_addr, (int)result->ai_addrlen);
-	freeaddrinfo(result);
-	if (iResult == SOCKET_ERROR) {
-		std::cout << "bind() failed: " << WSAGetLastError() << std::endl;
-		closesocket(m_socket);
-		WSACleanup();
-		return 1;
-	}
-
-	if (listen(m_socket, SOMAXCONN)) {
-		std::cout << "listen() failed: " << WSAGetLastError() << std::endl;
-		closesocket(m_socket);
-		WSACleanup();
-		return 1;
-	}
-
-	std::cout << "Listening at port: " << port << std::endl;
-
-	while (true) {
-		uint64_t client = INVALID_SOCKET;
-		client = accept(m_socket, NULL, NULL);
-		if (client == INVALID_SOCKET) {
-			std::cout << "accept() failed: " << WSAGetLastError() << std::endl;
-			closesocket(client);
-			continue;
+			reqHeaders[headerName] = headerValue;
 		}
 
-		std::async(std::launch::async, HandleReq, this, client);
-		//HandleReq(this, client);
-	}
-
-	WSACleanup();
-
-	return 0;
-}
-
-void HttpServer::get(const std::string& route, RouteFunc func) {
-	m_routeFuncs["GET " + route] = func;
-}
-
-RouteFunc HttpServer::getRouteFunc(const std::string& route) {
-	return m_routeFuncs[route];
-}
-
-static void HandleReq(HttpServer* server, uint64_t client) {
-	char recvbuf[REQ_BUFLEN];
-	int recvbuflen = REQ_BUFLEN;
-
-	int iResult = recv(client, recvbuf, recvbuflen, 0);
-	if (iResult < 0) {
-		std::cout << "recv() failed" << WSAGetLastError() << std::endl;
-		closesocket(client);
-		return;
-	}
-
-	std::unordered_map<std::string, std::string> reqHeaders;
-
-	bool isMethodRouteLine = true;
-	std::string method, route;
-	std::string methodRoute;
-
-	std::stringstream reqHeadersSS(recvbuf);
-	for (std::string headerLine; std::getline(reqHeadersSS, headerLine);) {
-		std::stringstream headerLineSS(headerLine);
-
-		if (isMethodRouteLine) {
-			headerLineSS >> method;
-			headerLineSS >> route;
-			methodRoute = method + " " + route;
-			isMethodRouteLine = false;
-			continue;
+		std::string response;
+		if (route.rfind("/static/", 0) == 0) {
+			response = getStaticFile(route);
+		} else {
+			RouteFunc responseFunc = m_routeFuncs[methodRoute];
+			response = responseFunc ? responseFunc(reqHeaders) : ERROR_404_RES;
 		}
 
-		std::string headerName;
-		std::transform(headerName.begin(), headerName.end(), headerName.begin(), ::tolower);
-		std::getline(headerLineSS, headerName, ':');
+		return response;
+	});
+}
 
-		std::string headerValue;
-		std::getline(headerLineSS, headerValue);
-		ltrim(headerValue);
-
-		reqHeaders[headerName] = headerValue;
-	}
-
-	std::string response;
-	if (route.rfind("/static/", 0) == 0) {
-		response = getStaticFile(route);
-	} else {
-		RouteFunc responseFunc = server->getRouteFunc(methodRoute);
-		response = responseFunc ? responseFunc(reqHeaders) : ERROR_404_RES;
-	}
-
-	iResult = send(client, response.c_str(), response.size(), 0);
-	if (iResult == SOCKET_ERROR) {
-		std::cout << "send() failed: " << WSAGetLastError() << std::endl;
-		closesocket(client);
-		return;
-	}
-
-	iResult = shutdown(client, SD_SEND);
-	if (iResult == SOCKET_ERROR) {
-		std::cout << "shutdown() failed: " << WSAGetLastError() << std::endl;
-		closesocket(client);
-		return;
-	}
+void HttpServer::route(const std::string& route, RouteFunc func) {
+	m_routeFuncs[route] = func;
 }
 
 static std::string getStaticFile(const std::string& path) {

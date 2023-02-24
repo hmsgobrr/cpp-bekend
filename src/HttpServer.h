@@ -5,21 +5,19 @@
 
 #include "rapidjson/document.h"
 
+#include "HttpSocket.h"
+
 using HeadersUMap = std::unordered_map<std::string, std::string>;
 typedef std::string (*RouteFunc)(const HeadersUMap&);
 
 class HttpServer {
 public:
-	int Start(int port);
+	int Listen(int port);
 
-	void get(const std::string& route, RouteFunc func);
-
-	RouteFunc getRouteFunc(const std::string& route);
+	void route(const std::string& route, RouteFunc func);
 private:
-	int m_port = 5000;
-	uint64_t m_socket = 0;
+	HttpSocket m_socket;
 	std::unordered_map<std::string, RouteFunc> m_routeFuncs;
 };
 
-int InitWSA();
 std::string renderHtmlFile(const std::string& htmlFilePath, const rapidjson::Document& data);

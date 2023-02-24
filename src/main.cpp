@@ -15,15 +15,9 @@ std::string d(const HeadersUMap&) {
 }
 
 int main() {
-	int iResult = InitWSA();
-	if (iResult != 0) {
-		std::cout << "WSAStartup failed with error: " << iResult << std::endl;
-		return 1;
-	}
-
 	HttpServer server;
 
-	server.get("/", d);
+	server.route("GET /", d);
 
-	server.Start(PORT);
+	server.Listen(PORT);
 }
