@@ -1,18 +1,12 @@
 #include "HttpServer.h"
 
-#include <winsock2.h>
-#include <ws2tcpip.h>
 #include <iostream>
-#include <future>
-#include <algorithm>
 #include <sstream>
 #include <fstream>
 #include <regex>
 
 #include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
-
-// #pragma comment(lib, "Ws2_32.lib")
 
 #define REQ_BUFLEN 512
 
@@ -89,7 +83,7 @@ static std::string getStaticFile(const std::string& path) {
 	if (fileExt == "jpg" || fileExt == "jpeg") {
 		isBinary = true;
 		contentType = "image/jpg";
-;	} else if (fileExt == "png") {
+	} else if (fileExt == "png") {
 		isBinary = true;
 		contentType = "image/png";
 	} else if (fileExt == "gif") {
@@ -110,7 +104,7 @@ static std::string getStaticFile(const std::string& path) {
 
 	std::ifstream file;
 
-	if (isBinary) file.open("." + path, std::ios::binary);
+	if (isBinary) file.open("." + path, std::ios::binary | std::ios::in);
 	else file.open("." + path);
 
 	if (!file.is_open()) return ERROR_404_RES;
@@ -120,7 +114,7 @@ static std::string getStaticFile(const std::string& path) {
 	for (std::string line; std::getline(file, line);) {
 		fileContent.append(line + "\n");
 	}
-	
+
 	return "HTTP/1.1 200\ncontent-type: " + contentType + "\n\n" + fileContent;
 }
 

@@ -7,12 +7,15 @@
 	#include <winsock2.h>
 	#include <ws2tcpip.h>
 	#define GETERR() WSAGetLastError()
+	#define CLOSESOCKET(x) closesocket(x)
 	#define WSACLEANUP() WSACleanup()
 #else
 	#include <sys/socket.h>
+	#include <unistd.h>
 	#include <netinet/in.h>
 	#include <cstring>
 	#define GETERR() strerror(errno)
+	#define CLOSESOCKET(x) close(x)
 	#define WSACLEANUP()
 #endif
 
@@ -23,7 +26,6 @@ int HttpSocket::Listen(int port, std::function<std::string(std::string)> request
 
 	int iResult;
 
-
 #ifdef _WIN32
 	WSADATA wsaData;
 
@@ -33,22 +35,6 @@ int HttpSocket::Listen(int port, std::function<std::string(std::string)> request
 		return 1;
 	}
 #endif
-
-	// addrinfo* result = NULL;
-	// addrinfo hints;
-
-	// ZeroMemory(&hints, sizeof(hints));
-	// hints.ai_family = AF_INET;
-	// hints.ai_socktype = SOCK_STREAM;
-	// hints.ai_protocol = IPPROTO_TCP;
-	// hints.ai_flags = AI_PASSIVE;
-
-	// iResult = getaddrinfo(NULL, std::to_string(port).c_str(), &hints, &result);
-	// if (iResult != 0) {
-	// 	std::cout << "getaddrinfo failed: " << iResult << std::endl;
-	// 	WSACLEANUP();
-	// 	return 1;
-	// }
 
 	m_socket = -1;
 	m_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -64,16 +50,16 @@ int HttpSocket::Listen(int port, std::function<std::string(std::string)> request
 	serverAddress.sin_addr.s_addr = INADDR_ANY;
 
 	iResult = bind(m_socket, (sockaddr*)&serverAddress, sizeof(serverAddress));
-	if (iResult == SOCKET_ERROR) {
+	if (iResult < 0) {
 		std::cout << "bind() failed: " << GETERR() << std::endl;
-		closesocket(m_socket);
+		CLOSESOCKET(m_socket);
 		WSACLEANUP();
 		return 1;
 	}
 
 	if (listen(m_socket, SOMAXCONN)) {
 		std::cout << "listen() failed: " << GETERR() << std::endl;
-		closesocket(m_socket);
+		CLOSESOCKET(m_socket);
 		WSACLEANUP();
 		return 1;
 	}
@@ -85,7 +71,7 @@ int HttpSocket::Listen(int port, std::function<std::string(std::string)> request
 		client = accept(m_socket, NULL, NULL);
 		if (client == -1) {
 			std::cout << "accept() failed: " << GETERR() << std::endl;
-			closesocket(client);
+			CLOSESOCKET(client);
 			continue;
 		}
 
@@ -96,29 +82,25 @@ int HttpSocket::Listen(int port, std::function<std::string(std::string)> request
       int iResult = recv(client, recvbuf, recvbuflen, 0);
       if (iResult < 0) {
         std::cout << "recv() failed" << GETERR() << std::endl;
-        closesocket(client);
+        CLOSESOCKET(client);
         return;
       }
 
       std::string response = requestCallback(recvbuf);
 
 			iResult = send(client, response.c_str(), response.size(), 0);
-			if (iResult == SOCKET_ERROR) {
+			if (iResult < 0) {
 				std::cout << "send() failed: " << GETERR() << std::endl;
-				closesocket(client);
+				CLOSESOCKET(client);
 				return;
 			}
 
-			iResult = shutdown(client, SD_SEND);
-			if (iResult == SOCKET_ERROR) {
-				std::cout << "shutdown() failed: " << GETERR() << std::endl;
-				closesocket(client);
-				return;
-			}
+			CLOSESOCKET(client);
     }, client);
 		//HandleReq(this, client);
 	}
 
+	CLOSESOCKET(m_socket);
 	WSACLEANUP();
 
 	return 0;

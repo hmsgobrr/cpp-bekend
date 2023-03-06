@@ -19,4 +19,6 @@ add_executable(${PROJECT_NAME} ${SOURCE} ${ASSETS})
 
 target_include_directories(${PROJECT_NAME} PRIVATE src)
 target_include_directories(${PROJECT_NAME} PUBLIC vendor/rapidjson/include)
-target_link_libraries(${PROJECT_NAME} Ws2_32)
+if(WIN32)
+	target_link_libraries(${PROJECT_NAME} Ws2_32)	
+endif()
