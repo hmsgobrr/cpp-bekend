@@ -95,7 +95,16 @@ int HttpSocket::Listen(int port, std::function<std::string(std::string)> request
 				return;
 			}
 
+#ifdef _WIN32
+			iResult = shutdown(client, SD_SEND);
+			if (iResult == SOCKET_ERROR) {
+				std::cout << "shutdown() failed: " << GETERR() << std::endl;
+				closesocket(client);
+				return;
+			}
+#else
 			CLOSESOCKET(client);
+#endif
     }, client);
 		//HandleReq(this, client);
 	}
